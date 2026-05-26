@@ -30,11 +30,14 @@ python main.py
 - `grassland/gui.py`: pygame GUI, 화면 그리기, 카메라 드래그
 - `grassland/physics.py`: 간단한 위치, 속도, 경계, 충돌/밀림 처리
 - `grassland/world.py`: 생태계 객체 생성과 전체 시뮬레이션 진행
-- `grassland/entities/animals.py`: Animal, Carnivore, Herbivore, Omnivore 및 동물 클래스
-- `grassland/entities/plants.py`: Plant 및 식물 클래스
-- `grassland/entities/resources.py`: Resource, Water_Puddle, Carcass
-- `grassland/entities/terrain.py`: Terrain, Plain, Lake_Side, Cave
-- `grassland/entities/environment.py`: Environment, DroughtEvent
+- `grassland/entities/animals/`: `Animal` 공통 부모 클래스와 동물 계열 폴더
+  - `carnivores/`: `Carnivore`, `Lion`, `Hyena`, `BaldEagle`
+  - `herbivores/`: `Herbivore`, `Zebra`, `Gazelle`, `Elephant`
+  - `omnivores/`: `Omnivore`, `Meerkat`, `Warthog`
+- `grassland/entities/plants/`: `Plant`와 자식 식물 클래스
+- `grassland/entities/resources/`: `Resource`, `WaterPuddle`, `Carcass`
+- `grassland/entities/terrain/`: `Terrain`, `Plain`, `LakeSide`, `Cave`
+- `grassland/entities/environment/`: `Environment`, `DroughtEvent`
 
 ## GitHub 공유 흐름
 
@@ -46,4 +49,3 @@ git add .
 git commit -m "Initial grassland simulation"
 git push -u origin main
 ```
-

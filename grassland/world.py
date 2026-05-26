@@ -243,4 +243,3 @@ class World:
         for animal in self.living_animals():
             counts[animal.name] = counts.get(animal.name, 0) + 1
         return counts
-

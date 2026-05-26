@@ -1,0 +1,58 @@
+from __future__ import annotations
+
+from grassland.entities.animals.animal import Animal
+from grassland.geometry import Vec2
+
+
+class Herbivore(Animal):
+    def __init__(
+        self,
+        name: str,
+        position: Vec2,
+        color: tuple[int, int, int],
+        health: float,
+        speed: float,
+        power: float,
+        detect_range: float = 160.0,
+    ):
+        super().__init__(name, position, color, health, speed, power, detect_range)
+        self.flee_speed = speed * 1.25
+        self.panic_range = detect_range
+        self.base_panic_range = detect_range
+        self.is_chased = False
+        self.panic_boost_timer = 0.0
+
+    def update(self, world: object, dt: float) -> None:
+        if self.panic_boost_timer > 0:
+            self.panic_boost_timer = max(0.0, self.panic_boost_timer - dt)
+            self.panic_range = self.base_panic_range * 2.0
+            self.stamina_recovery_rate = 3.5
+        else:
+            self.panic_range = self.base_panic_range
+            self.stamina_recovery_rate = 7.0
+        super().update(world, dt)
+
+    def behave(self, world: object, dt: float) -> bool:
+        threat = world.nearest_predator(self, self.panic_range)
+        self.is_chased = threat is not None
+        if threat is not None:
+            bush = world.nearest_bush(self.position, 95.0)
+            if bush is not None and self.can_hide_in_bush():
+                self.move_toward(bush.position, self.flee_speed)
+                if self.position.distance_to(bush.position) < bush.radius + self.radius:
+                    bush.hide_entity(self)
+                return True
+            self.fight_or_flight(threat, world, dt)
+            return True
+        return self.seek_water_if_needed(world) or self.seek_plants_if_needed(world)
+
+    def can_hide_in_bush(self) -> bool:
+        return False
+
+    def heal(self) -> None:
+        self.health = min(self.max_health, self.health + 3.0)
+
+    def fight_or_flight(self, threat: Animal, world: object, dt: float) -> None:
+        self.move_away_from(threat.position, self.flee_speed)
+        self.lose_energy(8.0 * dt)
+        self.action_text = "flee"

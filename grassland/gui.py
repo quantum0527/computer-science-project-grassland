@@ -201,4 +201,3 @@ class GrasslandApp:
         surface = font.render(text, True, color)
         rect = surface.get_rect(center=(x, y))
         self.screen.blit(surface, rect)
-
