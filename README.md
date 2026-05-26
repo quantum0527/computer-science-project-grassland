@@ -1,4 +1,6 @@
-# 와글와글 초원 생태계
+# computer-science-project-grassland
+
+## 와글와글 초원 생태계
 
 객체지향 프로그래밍 프로젝트 계획서에 맞춘 아프리카 초원 생태계 시뮬레이션입니다.  
 현재 이미지는 없으므로 동물, 식물, 자원, 지형은 텍스트가 붙은 단순 도형으로 표시합니다.
@@ -44,3 +46,4 @@ git add .
 git commit -m "Initial grassland simulation"
 git push -u origin main
 ```
+
