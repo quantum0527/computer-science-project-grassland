@@ -18,7 +18,6 @@ from grassland.config import (
     SKY_OVERLAY_ALPHA,
     TEXT_COLOR,
 )
-from grassland.entities.animals import Animal
 from grassland.entities.resources import Carcass, WaterPuddle
 from grassland.entities.terrain import Cave, LakeSide, Plain
 from grassland.geometry import Vec2
@@ -202,29 +201,34 @@ class GrasslandApp:
 
     def draw_animals(self) -> None:
         for animal in self.world.animals:
-            if not animal.alive or not self.visible(animal):
+            if not getattr(animal, "alive", True) or not self.visible(animal):
                 continue
             x, y = self.world_to_screen(animal.position)
-            size = int(animal.radius * 2)
+            radius = getattr(animal, "radius", 18)
+            size = int(radius * 2)
             rect = pygame.Rect(0, 0, size, size)
             rect.center = (x, y)
-            color = animal.color
-            if animal.is_hidden:
+            color = getattr(animal, "color", (220, 220, 220))
+            if getattr(animal, "is_hidden", False):
                 color = tuple(max(35, int(channel * 0.65)) for channel in color)
             pygame.draw.rect(self.screen, color, rect, border_radius=6)
             pygame.draw.rect(self.screen, (40, 43, 35), rect, 2, border_radius=6)
             self.draw_health_bar(animal, x, y - size // 2 - 9, size)
-            self.draw_label(animal.name, x, y + size // 2 + 9, self.small_font)
-            if animal.action_text:
-                self.draw_label(animal.action_text, x, y - size // 2 - 22, self.small_font, (36, 36, 32))
+            self.draw_label(getattr(animal, "name", "Animal"), x, y + size // 2 + 9, self.small_font)
+            action_text = getattr(animal, "action_text", "")
+            if action_text:
+                self.draw_label(action_text, x, y - size // 2 - 22, self.small_font, (36, 36, 32))
 
-    def draw_health_bar(self, animal: Animal, x: int, y: int, width: int) -> None:
+    def draw_health_bar(self, animal: object, x: int, y: int, width: int) -> None:
+        if not hasattr(animal, "health"):
+            return
         bar_width = max(24, width)
         rect = pygame.Rect(0, 0, bar_width, 5)
         rect.center = (x, y)
         pygame.draw.rect(self.screen, (80, 65, 58), rect)
         fill = rect.copy()
-        fill.width = int(rect.width * max(0.0, animal.health / animal.max_health))
+        max_health = max(1.0, getattr(animal, "max_health", animal.health))
+        fill.width = int(rect.width * max(0.0, animal.health / max_health))
         pygame.draw.rect(self.screen, (88, 190, 91), fill)
 
     def draw_ui(self) -> None:

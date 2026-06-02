@@ -14,10 +14,12 @@ def run() -> None:
     if args.headless_steps > 0:
         for _ in range(args.headless_steps):
             world.update(1 / 30)
-        print(f"Day {world.environment.day} {world.environment.clock_text()} | animals={len(world.living_animals())}")
+        print(
+            f"Day {world.environment.day} {world.environment.clock_text()} "
+            f"| terrain={len(world.terrains)} resources={len(world.resources)} animals={len(world.living_animals())}"
+        )
         return
 
     from grassland.gui import GrasslandApp
 
     GrasslandApp(world).run()
-
