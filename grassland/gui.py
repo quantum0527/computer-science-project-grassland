@@ -1,15 +1,21 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pygame
 
 from grassland.config import (
+    ASSET_SPRITE_SHEET,
     BACKGROUND_COLOR,
     FPS,
     GRID_COLOR,
+    MIN_SCREEN_HEIGHT,
+    MIN_SCREEN_WIDTH,
     PANEL_BORDER,
     PANEL_COLOR,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
+    SKY_OVERLAY_ALPHA,
     TEXT_COLOR,
 )
 from grassland.entities.animals import Animal
@@ -23,7 +29,9 @@ class GrasslandApp:
     def __init__(self, world: World):
         pygame.init()
         pygame.display.set_caption("와글와글 초원 생태계")
-        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+        self.screen_width = SCREEN_WIDTH
+        self.screen_height = SCREEN_HEIGHT
+        self.screen = pygame.display.set_mode((self.screen_width, self.screen_height), pygame.RESIZABLE)
         self.clock = pygame.time.Clock()
         self.world = world
         self.camera = Vec2(220, 180)
@@ -31,6 +39,7 @@ class GrasslandApp:
         self.font = self._font(17)
         self.small_font = self._font(13)
         self.title_font = self._font(22)
+        self.sky_sprites = self.load_sky_sprites()
 
     def _font(self, size: int) -> pygame.font.Font:
         for name in ("malgungothic", "맑은 고딕", "arial"):
@@ -46,6 +55,8 @@ class GrasslandApp:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
+                elif event.type == pygame.VIDEORESIZE:
+                    self.resize(event.w, event.h)
                 elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     self.dragging = True
                 elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
@@ -62,15 +73,38 @@ class GrasslandApp:
         pygame.quit()
 
     def clamp_camera(self) -> None:
-        self.camera.x = max(0, min(self.camera.x, self.world.width - SCREEN_WIDTH))
-        self.camera.y = max(0, min(self.camera.y, self.world.height - SCREEN_HEIGHT))
+        max_x = max(0, self.world.width - self.screen_width)
+        max_y = max(0, self.world.height - self.screen_height)
+        self.camera.x = max(0, min(self.camera.x, max_x))
+        self.camera.y = max(0, min(self.camera.y, max_y))
+
+    def resize(self, width: int, height: int) -> None:
+        self.screen_width = max(MIN_SCREEN_WIDTH, width)
+        self.screen_height = max(MIN_SCREEN_HEIGHT, height)
+        self.screen = pygame.display.set_mode((self.screen_width, self.screen_height), pygame.RESIZABLE)
+        self.clamp_camera()
+
+    def load_sky_sprites(self) -> dict[str, pygame.Surface]:
+        sheet_path = Path(ASSET_SPRITE_SHEET)
+        if not sheet_path.exists():
+            return {}
+
+        sheet = pygame.image.load(str(sheet_path)).convert_alpha()
+        cell_width = sheet.get_width() // 5
+        cell_height = sheet.get_height() // 4
+        clear_rect = pygame.Rect(cell_width * 3, cell_height * 3, cell_width, cell_height)
+        storm_rect = pygame.Rect(cell_width * 4, cell_height * 3, cell_width, cell_height)
+        return {
+            "clear": sheet.subsurface(clear_rect).copy(),
+            "storm": sheet.subsurface(storm_rect).copy(),
+        }
 
     def world_to_screen(self, position: Vec2) -> tuple[int, int]:
         return int(position.x - self.camera.x), int(position.y - self.camera.y)
 
     def visible(self, entity: object, margin: int = 90) -> bool:
         x, y = self.world_to_screen(entity.position)
-        return -margin <= x <= SCREEN_WIDTH + margin and -margin <= y <= SCREEN_HEIGHT + margin
+        return -margin <= x <= self.screen_width + margin and -margin <= y <= self.screen_height + margin
 
     def draw(self) -> None:
         self.screen.fill(BACKGROUND_COLOR)
@@ -79,18 +113,48 @@ class GrasslandApp:
         self.draw_plants()
         self.draw_resources()
         self.draw_animals()
+        self.draw_sky_overlay()
         self.draw_ui()
         pygame.display.flip()
 
     def draw_field(self) -> None:
         start_x = int(self.camera.x // 80) * 80
         start_y = int(self.camera.y // 80) * 80
-        for world_x in range(start_x, int(self.camera.x + SCREEN_WIDTH) + 80, 80):
+        for world_x in range(start_x, int(self.camera.x + self.screen_width) + 80, 80):
             screen_x = int(world_x - self.camera.x)
-            pygame.draw.line(self.screen, GRID_COLOR, (screen_x, 0), (screen_x, SCREEN_HEIGHT), 1)
-        for world_y in range(start_y, int(self.camera.y + SCREEN_HEIGHT) + 80, 80):
+            pygame.draw.line(self.screen, GRID_COLOR, (screen_x, 0), (screen_x, self.screen_height), 1)
+        for world_y in range(start_y, int(self.camera.y + self.screen_height) + 80, 80):
             screen_y = int(world_y - self.camera.y)
-            pygame.draw.line(self.screen, GRID_COLOR, (0, screen_y), (SCREEN_WIDTH, screen_y), 1)
+            pygame.draw.line(self.screen, GRID_COLOR, (0, screen_y), (self.screen_width, screen_y), 1)
+
+    def draw_sky_overlay(self) -> None:
+        sky_height = min(132, max(96, self.screen_height // 7))
+        weather = self.world.environment.weather
+        sprite_key = "storm" if weather in ("rain", "drought") else "clear"
+        sky = self.sky_sprites.get(sprite_key)
+
+        if sky is not None:
+            overlay = pygame.transform.smoothscale(sky, (self.screen_width, sky_height))
+            overlay.set_alpha(SKY_OVERLAY_ALPHA)
+            self.screen.blit(overlay, (0, 0))
+        else:
+            fallback_colors = {
+                "sunny": (135, 205, 240),
+                "cloudy": (175, 198, 210),
+                "rain": (92, 112, 126),
+                "drought": (230, 177, 92),
+            }
+            overlay = pygame.Surface((self.screen_width, sky_height), pygame.SRCALPHA)
+            color = fallback_colors.get(weather, (135, 205, 240))
+            overlay.fill((*color, SKY_OVERLAY_ALPHA))
+            self.screen.blit(overlay, (0, 0))
+
+        if weather == "drought":
+            heat = pygame.Surface((self.screen_width, sky_height), pygame.SRCALPHA)
+            heat.fill((239, 137, 53, 72))
+            self.screen.blit(heat, (0, 0))
+
+        pygame.draw.line(self.screen, (246, 241, 222), (0, sky_height), (self.screen_width, sky_height), 2)
 
     def draw_terrains(self) -> None:
         for terrain in self.world.terrains:
@@ -164,7 +228,8 @@ class GrasslandApp:
         pygame.draw.rect(self.screen, (88, 190, 91), fill)
 
     def draw_ui(self) -> None:
-        panel = pygame.Rect(16, 14, 650, 92)
+        panel_width = min(690, self.screen_width - 32)
+        panel = pygame.Rect(16, 14, panel_width, 92)
         pygame.draw.rect(self.screen, PANEL_COLOR, panel, border_radius=8)
         pygame.draw.rect(self.screen, PANEL_BORDER, panel, 2, border_radius=8)
 
@@ -183,8 +248,8 @@ class GrasslandApp:
             self.draw_end_panel(env.end_reason)
 
     def draw_end_panel(self, reason: str) -> None:
-        panel = pygame.Rect(0, 0, 680, 110)
-        panel.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
+        panel = pygame.Rect(0, 0, min(680, self.screen_width - 48), 110)
+        panel.center = (self.screen_width // 2, self.screen_height // 2)
         pygame.draw.rect(self.screen, (245, 235, 211), panel, border_radius=8)
         pygame.draw.rect(self.screen, (92, 65, 50), panel, 3, border_radius=8)
         self.draw_label("Simulation Ended", panel.centerx, panel.centery - 22, self.title_font, (62, 45, 38))
