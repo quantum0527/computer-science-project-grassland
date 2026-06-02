@@ -26,11 +26,8 @@ class Vec2:
     def copy(self):
         return Vec2(self.x, self.y)
 
-    def length_squared(self):
-        return self.x * self.x + self.y * self.y
-
     def length(self):
-        return math.sqrt(self.length_squared())
+        return math.sqrt(self.x * self.x + self.y * self.y)
 
     def normalized(self):
         size = self.length()
