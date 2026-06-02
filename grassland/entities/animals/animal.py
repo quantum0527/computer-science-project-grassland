@@ -38,7 +38,7 @@ class Animal(Entity):
         self._carcass_spawned = False
 
     def move(self, direction: Vec2) -> None:
-        self.velocity = direction.normalized() * self.speed (#normalized -> 물리에서 정규화랑 똑같)
+        self.velocity = direction.normalized() * self.speed #normalized -> 물리에서 정규화랑 똑같)
 
     def eat(self, food: object) -> None:
         if hasattr(food, "consume"):
