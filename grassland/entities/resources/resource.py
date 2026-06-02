@@ -23,5 +23,4 @@ class Resource(Entity):
 
     def delete(self) -> None:
         self.alive = False
-        self.solid = False
 

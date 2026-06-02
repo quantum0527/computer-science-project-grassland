@@ -6,7 +6,7 @@ from typing import Optional
 from grassland.entities.base import Entity
 from grassland.geometry import Vec2, random_unit_vector
 
-
+#8.0 이 여윳값의 최소 단위 
 class Animal(Entity):
     def __init__(
         self,
@@ -37,48 +37,22 @@ class Animal(Entity):
         self.decision_timer = random.uniform(0.2, 1.4)
         self._carcass_spawned = False
 
-    def update(self, world: object, dt: float) -> None:
-        if not self.alive:
-            return
-        self.is_hidden = False
-        self.tick_body(world, dt)
-        if not self.alive:
-            return
-        self.recover_stamina(dt)
-        if self.is_sleeping:
-            self.velocity = self.velocity * 0.3
-            return
-        if not self.behave(world, dt):
-            self.wander(dt)
-
-    def tick_body(self, world: object, dt: float) -> None:
-        self.age += dt
-        self.hunger = min(100.0, self.hunger + dt * 0.18)
-        self.thirst = min(100.0, self.thirst + dt * 0.25)
-        if world.environment.weather == "drought" and world.drought_event is not None:
-            world.drought_event.accelerate_thirst(self, dt)
-        if self.hunger >= 100.0 or self.thirst >= 100.0 or self.health <= 0:
-            self.die(world)
-
-    def behave(self, world: object, dt: float) -> bool:
-        return self.seek_water_if_needed(world) or self.seek_plants_if_needed(world)
-
     def move(self, direction: Vec2) -> None:
-        self.velocity = direction.normalized() * self.speed
+        self.velocity = direction.normalized() * self.speed (#normalized -> 물리에서 정규화랑 똑같)
 
     def eat(self, food: object) -> None:
         if hasattr(food, "consume"):
             eaten = food.consume(14)
-            self.hunger = max(0.0, self.hunger - eaten)
-            self.action_text = "eat"
+            self.hunger = max(0.0, self.hunger - eaten) # hunger 최솟값 0으로 고정
+            self.action_text = "eat" 
 
-    def drink(self, source: object) -> None:
-        if hasattr(source, "reduce_thirst"):
+    def drink(self, source: object) -> None: #drink 가능한 개체들에 대해 drink 시행
+        if hasattr(source, "reduce_thirst"): 
             source.reduce_thirst(self)
         elif hasattr(source, "enable_drinking"):
             source.enable_drinking(self)
 
-    def sleep(self) -> None:
+    def sleep(self) -> None: # -> 는 Type을 지정해주는 도구, 이를 위해 __future__ 불러옴
         self.is_sleeping = True
         self.action_text = "sleep"
 
@@ -86,54 +60,55 @@ class Animal(Entity):
         self.is_sleeping = False
 
     def lose_energy(self, amount: float) -> None:
-        self.stamina = max(0.0, self.stamina - amount)
-
+        self.stamina = max(0.0, self.stamina - amount) #스태미나는 최솟값이 0 
+ 
     def die(self, world: Optional[object] = None) -> None:
         if not self.alive:
             return
         self.alive = False
-        self.solid = False
         self.stop()
         self.action_text = "dead"
         if world is not None and not self._carcass_spawned:
             self._carcass_spawned = True
-            world.spawn_carcass(self)
+            world.spawn_carcass(self) #죽으면 carcass(시체 생성)
 
     def attack(self, target: object, world: object) -> None:
         if not getattr(target, "alive", False):
             return
         target.health -= self.power
-        target.stress = min(100.0, target.stress + 8.0)
+        target.stress = min(100.0, target.stress + 8.0) #stress는 최대 100, 공격 받으면 8증가 (이거 대충 정해놓은거고 시뮬레이션 돌리고 최적값 찾기)
         self.action_text = "attack"
         if target.health <= 0:
             target.die(world)
 
     def couple(self, one: object, other: object) -> bool:
-        return getattr(one, "alive", False) and getattr(other, "alive", False)
+        if getattr(one, "alive", False) and getattr(other, "alive", False):
+            a = random.uniform(0,1)
+            return bool(round(a)) #(번식 성공 확률 1/2)
 
     def recover_stamina(self, dt: float) -> None:
-        self.stamina = min(100.0, self.stamina + self.stamina_recovery_rate * dt)
+        self.stamina = min(100.0, self.stamina + self.stamina_recovery_rate * dt) #스태미나 하한값 100.0
 
     def distant_to(self, target: object) -> float:
         return self.distance_to(target)
 
     def seek_water_if_needed(self, world: object) -> bool:
         if self.thirst < 58.0:
-            return False
+            return False #목 안마르면 굳이 시행 안함
         water = world.nearest_water(self.position)
-        if water is None:
+        if water is None:#No 물 -> 그냥 False 리턴하기
             return False
         if self.position.distance_to(water.position) <= self.radius + water.radius + 8:
             self.drink(water)
             self.stop()
         else:
             self.move_toward(water.position, self.speed * 0.85)
-            self.action_text = "water"
+            self.action_text = "water" # 물 찾을때까지 water.position 방향으로 이동하기
         return True
 
     def seek_plants_if_needed(self, world: object) -> bool:
         if self.hunger < 62.0:
-            return False
+            return False #충분히 배부르면 굳이 안함
         plant = world.nearest_plant(self.position)
         if plant is None:
             return False
@@ -142,7 +117,7 @@ class Animal(Entity):
             self.stop()
         else:
             self.move_toward(plant.position, self.speed * 0.7)
-            self.action_text = "forage"
+            self.action_text = "풀 먹으러 가는 중" # 풀 찾을 때까지 plant.position 방향으로 이동하기
         return True
 
     def wander(self, dt: float) -> None:

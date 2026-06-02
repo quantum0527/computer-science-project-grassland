@@ -8,8 +8,6 @@ from grassland.geometry import Vec2
 
 
 class Carnivore(Animal):
-    threatens_herbivores = True
-
     def __init__(
         self,
         name: str,
@@ -24,24 +22,6 @@ class Carnivore(Animal):
         self.stealth = 0.18
         self.acceleration = 34.0
         self.hunt_stamina_cost = 10.0
-
-    def behave(self, world: object, dt: float) -> bool:
-        if self.seek_water_if_needed(world):
-            return True
-        if self.hunger > 48.0:
-            carcass = world.nearest_carcass(self.position)
-            if carcass is not None:
-                if self.position.distance_to(carcass.position) <= self.radius + carcass.radius + 10:
-                    self.eat(carcass)
-                    return True
-                self.move_toward(carcass.position, self.speed * 0.75)
-                self.action_text = "carcass"
-                return True
-            prey = self.find_prey(world)
-            if prey is not None:
-                self.hunt(prey, world, dt)
-                return True
-        return False
 
     def eat(self, food: object) -> None:
         if isinstance(food, Carcass):
