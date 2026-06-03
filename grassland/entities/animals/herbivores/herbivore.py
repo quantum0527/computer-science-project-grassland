@@ -16,6 +16,8 @@ class Herbivore(Animal):
         detect_range: float = 160.0,
     ):
         super().__init__(name, position, color, health, speed, power, detect_range)
+        self.role = "herbivore"
+        self.diet_type = "herbivore"
         self.flee_speed = speed * 1.25
         self.panic_range = detect_range
         self.base_panic_range = detect_range
@@ -23,6 +25,12 @@ class Herbivore(Animal):
         self.panic_boost_timer = 0.0
 
     def update(self, world: object, dt: float) -> None:
+        if not self.alive:
+            return
+        self.age += dt
+        self.hunger = min(100.0, self.hunger + 2.4 * dt)
+        self.thirst = min(100.0, self.thirst + 2.1 * dt)
+        self.recover_stamina(dt)
         if self.panic_boost_timer > 0:
             self.panic_boost_timer = max(0.0, self.panic_boost_timer - dt)
             self.panic_range = self.base_panic_range * 2.0
@@ -30,7 +38,8 @@ class Herbivore(Animal):
         else:
             self.panic_range = self.base_panic_range
             self.stamina_recovery_rate = 7.0
-        super().update(world, dt)
+        if not self.behave(world, dt):
+            self.wander(dt)
 
     def behave(self, world: object, dt: float) -> bool:
         threat = world.nearest_predator(self, self.panic_range)
